@@ -9,7 +9,9 @@ from influxdb import InfluxDBClient
 
 
 class THLogger:
-    SENSORS = {11: Adafruit_DHT.DHT11, 22: Adafruit_DHT.DHT22}
+    SENSORS = {11: Adafruit_DHT.DHT11,
+               22: Adafruit_DHT.DHT22,
+               2302: Adafruit_DHT.AM2302}
 
     def __init__(self, args):
         # assign args to object attributes
@@ -86,7 +88,7 @@ class THLogger:
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-m', '--sensor-model', dest='SENSOR_MODEL', help='Model of DHT sensor used', type=int,
-                        required=True, choices=[11, 22])
+                        required=True, choices=[11, 22, 2302])
     parser.add_argument('-P', '--sensor-pin', dest='SENSOR_PIN', help='GPIO pin used for sensor', type=int,
                         required=True)
     parser.add_argument('-H', '--host', dest='HOST', help='InfluxDB host', required=True)
