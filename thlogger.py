@@ -14,22 +14,29 @@ class THLogger:
                2302: Adafruit_DHT.AM2302}
 
     def __init__(self, args):
-        # assign args to object attributes
-        for k, v in vars(args).items():
+        # read config file
+        self.CONFIG_FILE = args.CONFIG_FILE
+        if os.path.exists(self.CONFIG_FILE):
+            with open(self.CONFIG_FILE) as f:
+                self.CONFIG = json.load(f)
+        else:
+            raise Exception('Error opening config file {}'.format(self.CONFIG_FILE))
+
+        # assign config items to object attributes
+        for k, v in self.CONFIG.items():
             setattr(self, k, v)
 
         # set up config
-        if os.path.exists(self.LOG_CONFIG):
-            with open(self.LOG_CONFIG) as f:
-                logging_config = json.load(f)
-            logging.config.dictConfig(logging_config)
+        if hasattr(self, 'LOG_CONFIG') and self.LOG_CONFIG:
+            logging.config.dictConfig(self.LOG_CONFIG)
         else:
             logging.basicConfig(level='INFO')
         self.logger = logging.getLogger(__name__)
+        self.logger.info('INITIALIZING')
 
         self.SENSOR = self.SENSORS[self.SENSOR_MODEL]
-        self.logger.info('INIT SENSOR MODEL %s', self.SENSOR)
-        self.logger.info('USING PIN %s', self.SENSOR_PIN)
+        self.logger.info('SENSOR MODEL %s', self.SENSOR)
+        self.logger.info('GPIO PIN %s', self.GPIO_PIN)
         self.logger.info('LOCATION %s', self.LOCATION)
 
         # init influxdb client
@@ -47,7 +54,7 @@ class THLogger:
         while True:
             try:
                 humidity, temperature = [int(reading) if reading else None
-                                         for reading in Adafruit_DHT.read_retry(self.SENSOR, self.SENSOR_PIN)]
+                                         for reading in Adafruit_DHT.read_retry(self.SENSOR, self.GPIO_PIN)]
                 if humidity is not None and temperature is not None:
                     ts = datetime.datetime.now(datetime.timezone.utc)
                     json_body = [
@@ -87,18 +94,8 @@ class THLogger:
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('-m', '--sensor-model', dest='SENSOR_MODEL', help='Model of DHT sensor used', type=int,
-                        required=True, choices=[11, 22, 2302])
-    parser.add_argument('-P', '--sensor-pin', dest='SENSOR_PIN', help='GPIO pin used for sensor', type=int,
-                        required=True)
-    parser.add_argument('-H', '--host', dest='HOST', help='InfluxDB host', required=True)
-    parser.add_argument('-p', '--port', dest='PORT', help='InfluxDB port', type=int, default=8086)
-    parser.add_argument('-d', '--database', dest='DATABASE', help='InfluxDB database', required=True)
-    parser.add_argument('-c', '--config', dest='LOG_CONFIG', help='Log config file',
+    parser.add_argument('-c', '--config', dest='CONFIG_FILE', help='Path to config file',
                         default='/etc/thlogger/thlogger.conf')
-    parser.add_argument('-s', '--sleep', dest='SLEEP_BETWEEN_READINGS', help='Time to sleep between readings (s)',
-                        type=int, default=60)
-    parser.add_argument('-l', '--location', dest='LOCATION', help='Location of logger', required=True)
     args = parser.parse_args()
 
     thlogger = THLogger(args)
