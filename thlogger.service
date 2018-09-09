@@ -1,0 +1,10 @@
+[Unit]
+Description=thlogger
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /etc/thlogger/thlogger.py
+
+[Install]
+WantedBy=multi-user.target
