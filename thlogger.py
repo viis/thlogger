@@ -98,8 +98,10 @@ class THLogger:
         except Exception:
             self.logger.warning('FAILED TO WRITE MEASUREMENTS')
 
-    def work(self):
-        while True:
+    def work(self, max_iterations=None):
+        iterations = 0
+        stop = False
+        while not stop:
             try:
                 humidity, temperature = [int(reading) if reading else None
                                          for reading in Adafruit_DHT.read_retry(self.SENSOR, self.GPIO_PIN)]
@@ -121,6 +123,9 @@ class THLogger:
                 self.logger.error(e)
 
             sleep(self.SLEEP_BETWEEN_READINGS)
+            iterations += 1
+            if max_iterations and iterations >= max_iterations:
+                stop = True
 
 
 if __name__ == '__main__':
