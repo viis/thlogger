@@ -1,1 +1,3 @@
 thlogger.conf
+.env
+__pycache__
