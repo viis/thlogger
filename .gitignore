@@ -1,3 +1,4 @@
 thlogger.conf
 .env
 __pycache__
+.coverage
