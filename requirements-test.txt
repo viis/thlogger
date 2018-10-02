@@ -2,3 +2,4 @@ influxdb==5.2.0
 tenacity==5.0.2
 pytest==3.8.1
 pytest-cov==2.6.0
+coveralls==1.5.1
