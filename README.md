@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.com/viis/thlogger.svg?branch=master)](https://travis-ci.com/viis/thlogger)
-[![Coverage Status](https://coveralls.io/repos/github/viis/thlogger/badge.svg?branch=master)](https://coveralls.io/github/viis/thlogger?branch=master)
+[![codecov](https://codecov.io/gh/viis/thlogger/branch/master/graph/badge.svg)](https://codecov.io/gh/viis/thlogger)
 
 # thlogger
 Temperature and humidity logger
