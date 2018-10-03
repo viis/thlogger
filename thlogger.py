@@ -128,7 +128,7 @@ class THLogger:
                 stop = True
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     parser = ArgumentParser()
     parser.add_argument('-c', '--config', dest='CONFIG_FILE', help='Path to config file',
                         default='/etc/thlogger/thlogger.conf')

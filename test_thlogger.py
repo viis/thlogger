@@ -1,5 +1,9 @@
 from collections import namedtuple
 from unittest.mock import MagicMock, patch
+import tempfile
+import json
+import pytest
+import os
 import sys
 sys.modules['Adafruit_DHT'] = MagicMock()
 from thlogger import THLogger  # noqa
@@ -7,15 +11,25 @@ from thlogger import THLogger  # noqa
 CONFIG_FILE_PATH = 'thlogger.conf.example'
 
 
-def init_logger():
+def init_logger(config_file_path=None):
     Args = namedtuple('Args', 'CONFIG_FILE')
-    args = Args(CONFIG_FILE_PATH)
+    if not config_file_path:
+        config_file_path = CONFIG_FILE_PATH
+    args = Args(config_file_path)
     thlogger = THLogger(args)
 
     # reduce sleep to speed up tests runtime
     thlogger.SLEEP_BETWEEN_READINGS = 0.1
 
     return thlogger
+
+
+def raise_keyboardinterrupt():
+    raise KeyboardInterrupt
+
+
+def raise_exception():
+    raise Exception
 
 
 @patch('thlogger.THLogger.init_db_connection', return_value=None)
@@ -31,7 +45,23 @@ def test_init(mock_init_db):
     assert thlogger.LOCATION == 'garage'
     assert thlogger.SLEEP_BETWEEN_READINGS == 0.1
     assert thlogger.measurements == []
+
+    # test exception if config path is wrong
     assert mock_init_db.called
+    with pytest.raises(Exception) as e:
+        thlogger = init_logger('does_not_exist')
+    assert 'Error opening' in str(e.value)
+
+    # test fallback to basic config for logging
+    with open(CONFIG_FILE_PATH) as f:
+        config = json.load(f)
+        del config['LOG_CONFIG']
+    temp_file_name = None
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as tf:
+        tf.write(json.dumps(config))
+        temp_file_name = tf.name
+    thlogger = init_logger(temp_file_name)
+    os.remove(temp_file_name)
 
 
 @patch('Adafruit_DHT.read_retry', return_value=(50, 20))
@@ -66,16 +96,55 @@ def test_create_database(mock_write, mock_switch_db, mock_create_db, mock_list_d
     assert len(thlogger.measurements) == 0
 
 
-def mock_write_points():
-    raise Exception
+@patch('Adafruit_DHT.read_retry', return_value=(None, None))
+@patch('influxdb.InfluxDBClient.get_list_database', return_value=[{'name': 'thlogger'}, {'name': 'test'}])
+@patch('influxdb.InfluxDBClient.create_database', return_value=None)
+@patch('influxdb.InfluxDBClient.switch_database', return_value=None)
+@patch('influxdb.InfluxDBClient.write_points', return_value=None)
+def test_handle_failed_read(mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read):
+    thlogger = init_logger()
+    thlogger.work(max_iterations=2)
+    assert mock_read.call_count == 2
+    assert mock_list_dbs.called
+    assert not mock_create_db.called
+    assert mock_switch_db.called
+    assert mock_write.call_count == 0
+    assert len(thlogger.measurements) == 0
 
 
 @patch('Adafruit_DHT.read_retry', return_value=(50, 20))
 @patch('influxdb.InfluxDBClient.get_list_database', return_value=[{'name': 'thlogger'}, {'name': 'test'}])
 @patch('influxdb.InfluxDBClient.create_database', return_value=None)
 @patch('influxdb.InfluxDBClient.switch_database', return_value=None)
-@patch('influxdb.InfluxDBClient.write_points', side_effect=mock_write_points)
+@patch('influxdb.InfluxDBClient.write_points', side_effect=raise_exception)
 def test_handle_failed_write(mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read):
+    thlogger = init_logger()
+    thlogger.work(max_iterations=2)
+    assert mock_read.call_count == 2
+    assert mock_list_dbs.called
+    assert not mock_create_db.called
+    assert mock_switch_db.called
+    assert mock_write.call_count == 2
+    assert len(thlogger.measurements) == 2
+
+
+@patch('Adafruit_DHT.read_retry', return_value=(50, 20))
+@patch('influxdb.InfluxDBClient.get_list_database', return_value=[{'name': 'thlogger'}, {'name': 'test'}])
+@patch('influxdb.InfluxDBClient.create_database', return_value=None)
+@patch('influxdb.InfluxDBClient.switch_database', return_value=None)
+@patch('thlogger.THLogger.write_measurements', side_effect=raise_keyboardinterrupt)
+def test_keyboard_interrupt(mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read):
+    thlogger = init_logger()
+    with pytest.raises(KeyboardInterrupt):
+        thlogger.work(max_iterations=2)
+
+
+@patch('Adafruit_DHT.read_retry', return_value=(50, 20))
+@patch('influxdb.InfluxDBClient.get_list_database', return_value=[{'name': 'thlogger'}, {'name': 'test'}])
+@patch('influxdb.InfluxDBClient.create_database', return_value=None)
+@patch('influxdb.InfluxDBClient.switch_database', return_value=None)
+@patch('thlogger.THLogger.write_measurements', side_effect=raise_exception)
+def test_other_exception_handling(mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read):
     thlogger = init_logger()
     thlogger.work(max_iterations=2)
     assert mock_read.call_count == 2
