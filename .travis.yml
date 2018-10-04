@@ -4,6 +4,6 @@ python:
 install:
   - pip install -r requirements-test.txt
 script:
-  - pytest --cov-report=term-missing --cov=thlogger
+  - pytest --cov-report=term-missing --cov=thlogger -v
 after_success:
   - codecov
