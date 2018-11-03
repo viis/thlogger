@@ -5,18 +5,20 @@ import json
 import pytest
 import os
 import sys
+from requests.exceptions import ConnectionError
 
 sys.modules["Adafruit_DHT"] = MagicMock()
 from thlogger import THLogger  # noqa
 
 CONFIG_FILE_PATH = "thlogger.conf.example"
+NETWORK_RESTARTED = False
 
 
 def init_logger(config_file_path=None):
-    Args = namedtuple("Args", "CONFIG_FILE")
+    Args = namedtuple("Args", ["CONFIG_FILE", "MAX_CONNECTION_RETRIES"])
     if not config_file_path:
         config_file_path = CONFIG_FILE_PATH
-    args = Args(config_file_path)
+    args = Args(config_file_path, 1)
     thlogger = THLogger(args)
 
     # reduce sleep to speed up tests runtime
@@ -29,8 +31,19 @@ def raise_keyboardinterrupt():
     raise KeyboardInterrupt
 
 
+def conditionally_raise_connectionerror():
+    if not NETWORK_RESTARTED:
+        raise ConnectionError
+    return [{"name": "thlogger"}, {"name": "test"}]
+
+
 def raise_exception():
     raise Exception
+
+
+def set_network_restarted(*args):
+    global NETWORK_RESTARTED
+    NETWORK_RESTARTED = True
 
 
 @patch("thlogger.THLogger.init_db_connection", return_value=None)
@@ -141,12 +154,40 @@ def test_handle_failed_write(
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=2)
-    assert mock_read.call_count == 2
-    assert mock_list_dbs.called
+    assert mock_list_dbs.call_count == 1
     assert not mock_create_db.called
-    assert mock_switch_db.called
+    assert mock_switch_db.call_count == 1
+    assert mock_read.call_count == 2
     assert mock_write.call_count == 2
     assert len(thlogger.measurements) == 2
+
+
+@patch("Adafruit_DHT.read_retry", return_value=(50, 20))
+@patch(
+    "influxdb.InfluxDBClient.get_list_database",
+    return_value=[{"name": "thlogger"}, {"name": "test"}],
+)
+@patch("influxdb.InfluxDBClient.create_database", return_value=None)
+@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
+@patch("influxdb.InfluxDBClient.write_points", side_effect=raise_exception)
+@patch("thlogger.THLogger.restart_networking", return_value=None)
+def test_write_failure_threshold(
+    mock_restart_networking,
+    mock_write,
+    mock_switch_db,
+    mock_create_db,
+    mock_list_dbs,
+    mock_read,
+):
+    thlogger = init_logger()
+    thlogger.work(max_iterations=2, write_failure_threshold=1)
+    assert mock_list_dbs.call_count == 1
+    assert not mock_create_db.called
+    assert mock_switch_db.call_count == 1
+    assert mock_read.call_count == 2
+    assert mock_write.call_count == 2
+    assert len(thlogger.measurements) == 2
+    assert mock_restart_networking.call_count == 1
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
@@ -184,3 +225,28 @@ def test_other_exception_handling(
     assert mock_switch_db.called
     assert mock_write.call_count == 2
     assert len(thlogger.measurements) == 2
+
+
+@patch("Adafruit_DHT.read_retry", return_value=(50, 20))
+@patch(
+    "influxdb.InfluxDBClient.get_list_database",
+    side_effect=conditionally_raise_connectionerror,
+)
+@patch("influxdb.InfluxDBClient.create_database", return_value=None)
+@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
+@patch("influxdb.InfluxDBClient.write_points", return_value=None)
+@patch("subprocess.call", side_effect=set_network_restarted)
+def test_network_restart(
+    mock_system_call,
+    mock_write,
+    mock_switch_db,
+    mock_create_db,
+    mock_list_dbs,
+    mock_read,
+):
+    thlogger = init_logger()
+    thlogger.work(max_iterations=1)
+    assert mock_list_dbs.call_count == 2
+    assert mock_create_db.call_count == 0
+    assert mock_switch_db.call_count == 1
+    assert mock_system_call.call_count == 2
