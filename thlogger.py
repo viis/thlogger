@@ -69,7 +69,7 @@ class THLogger:
 
         databases = []
         self.logger.debug("CONNECTING TO %s:%s", self.HOST, self.PORT)
-        self.client = InfluxDBClient(self.HOST, self.PORT)
+        self.client = InfluxDBClient(self.HOST, self.PORT, self.DB_USER, self.DB_PASS)
         databases = [d.get("name") for d in self.client.get_list_database()]
         self.logger.debug("AVAILABLE DATABASES %s", databases)
 

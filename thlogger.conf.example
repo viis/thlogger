@@ -4,6 +4,8 @@
     "HOST": "localhost",
     "PORT": 8086,
     "DATABASE": "thlogger",
+    "DB_USER": "thlogger",
+    "DB_PASS": "thlogger",
     "LOCATION": "garage",
     "SLEEP_BETWEEN_READINGS": 300,
     "LOG_CONFIG": {
