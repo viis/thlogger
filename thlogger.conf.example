@@ -17,8 +17,7 @@
         "handlers": {
             "h": {
                 "class": "logging.StreamHandler",
-                "formatter": "f",
-                "level": "INFO"
+                "formatter": "f"
             }
         },
         "root": {
