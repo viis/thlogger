@@ -81,8 +81,8 @@ class THLogger:
 
     def restart_networking(self):
         self.logger.info("RESTARTING NETWORKING")
-        subprocess.call("systemctl", "daemon-reload")
-        subprocess.call("systemctl", "restart", "dhcpcd")
+        subprocess.call(["systemctl", "daemon-reload"])
+        subprocess.call(["systemctl", "restart", "dhcpcd"])
 
     def write_measurements(self):
         # write measurements to db
