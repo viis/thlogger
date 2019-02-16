@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+    influxdb:
+        image: influxdb
+        volumes:
+            - ./vol:/var/lib/influxdb
+        ports:
+            - 8086:8086
+        env_file:
+            - influxdb.env
+
+    grafana:
+        image: grafana/grafana
+        ports:
+            - 8080:3000
