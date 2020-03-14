@@ -21,12 +21,12 @@ you could use an old repurposed laptop, or a VPS (these start at around $5/month
 To make this as easy as possible, we'll use Docker.
 
 * [Install Docker](https://docs.docker.com/install/#supported-platforms)
-
+* Install docker-compose
 * Clone this repository
 
 ```bash
 git clone https://github.com/viis/thlogger.git
-cd thlogger
+cd thlogger/docker
 ```
 
 * Rename and add a password to the `influxdb.env` file
