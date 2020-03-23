@@ -2,6 +2,7 @@ version: '3'
 
 services:
     influxdb:
+        restart: always
         image: influxdb
         volumes:
             - ./vol:/var/lib/influxdb
@@ -11,6 +12,7 @@ services:
             - influxdb.env
 
     grafana:
+        restart: always
         image: grafana/grafana
         ports:
             - 8080:3000
