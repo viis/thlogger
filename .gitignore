@@ -3,3 +3,5 @@ thlogger.conf
 __pycache__
 .coverage
 tags
+docker/vol
+docker/influxdb.env
