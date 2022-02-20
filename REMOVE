@@ -1,0 +1,9 @@
+#!/bin/sh
+systemctl stop thlogger.service
+systemctl disable thlogger.service
+rm -f /lib/systemd/system/thlogger.service
+systemctl daemon-reload
+systemctl reset-failed
+rm -rf /etc/thlogger
+rm -rf /var/log/thlogger
+rm -rf /opt/thlogger

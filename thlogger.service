@@ -4,7 +4,9 @@ After=multi-user.target
 
 [Service]
 Type=idle
-ExecStart=/usr/bin/python3 /etc/thlogger/thlogger.py
+ExecStart=/opt/thlogger/venv/bin/python /etc/thlogger/thlogger.py
+StandardOutput=append:/var/log/thlogger/thlogger.log
+StandardError=append:/var/log/thlogger/thlogger.log
 
 [Install]
 WantedBy=multi-user.target

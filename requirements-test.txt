@@ -1,5 +1,6 @@
-influxdb==5.2.0
-tenacity==5.0.2
-pytest==3.8.1
-pytest-cov==2.6.0
-codecov==2.0.15
+influxdb-client==1.24.0
+tenacity==8.0.1
+requests==2.26.0
+pytest==6.2.5
+pytest-cov==3.0.0
+codecov==2.1.12

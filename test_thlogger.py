@@ -31,10 +31,10 @@ def raise_keyboardinterrupt():
     raise KeyboardInterrupt
 
 
-def conditionally_raise_connectionerror():
+def conditionally_raise_connectionerror(bucket):
     if not NETWORK_RESTARTED:
         raise ConnectionError
-    return [{"name": "thlogger"}, {"name": "test"}]
+    return True
 
 
 def raise_exception():
@@ -55,8 +55,10 @@ def test_init(mock_init_db):
     assert thlogger.GPIO_PIN == 17
     assert thlogger.HOST == "localhost"
     assert thlogger.PORT == 8086
-    assert thlogger.DATABASE == "thlogger"
+    assert thlogger.ORG == "isberg"
+    assert thlogger.BUCKET == "thlogger"
     assert thlogger.LOCATION == "garage"
+    assert thlogger.TOKEN == "8wunTOywHGlfynE96WRM3z7nySZpetDOlxRvdKAi83lt4-EyYWqZpG1o267fwOfZMAwRF2qRE9SyV-OtAc5a7g=="
     assert thlogger.SLEEP_BETWEEN_READINGS == 0.1
     assert thlogger.measurements == []
 
@@ -78,112 +80,87 @@ def test_init(mock_init_db):
     os.remove(temp_file_name)
 
 
+#if not buckets_api.find_bucket_by_name(self.BUCKET):
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", return_value=None)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", return_value=None)
 def test_read_write(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=1)
     assert mock_read.called
-    assert mock_list_dbs.called
-    assert not mock_create_db.called
-    assert mock_switch_db.called
+    assert mock_find_bucket.called
+    assert not mock_create_bucket.called
     assert mock_write.called
     assert len(thlogger.measurements) == 0
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "test"}, {"name": "test2"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", return_value=None)
-def test_create_database(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=None)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", return_value=None)
+def test_create_bucket(
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=1)
     assert mock_read.called
-    assert mock_list_dbs.called
-    assert mock_create_db.called
-    assert mock_switch_db.called
+    assert mock_find_bucket.called
+    assert mock_create_bucket.called
     assert mock_write.called
     assert len(thlogger.measurements) == 0
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(None, None))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", return_value=None)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", return_value=None)
 def test_handle_failed_read(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=2)
     assert mock_read.call_count == 2
-    assert mock_list_dbs.called
-    assert not mock_create_db.called
-    assert mock_switch_db.called
+    assert mock_find_bucket.called
+    assert not mock_create_bucket.called
     assert mock_write.call_count == 0
     assert len(thlogger.measurements) == 0
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", side_effect=raise_exception)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", side_effect=raise_exception)
 def test_handle_failed_write(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=2)
-    assert mock_list_dbs.call_count == 1
-    assert not mock_create_db.called
-    assert mock_switch_db.call_count == 1
+    assert mock_find_bucket.call_count == 1
+    assert not mock_create_bucket.called
     assert mock_read.call_count == 2
     assert mock_write.call_count == 2
     assert len(thlogger.measurements) == 2
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", side_effect=raise_exception)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", side_effect=raise_exception)
 @patch("thlogger.THLogger.restart_networking", return_value=None)
 def test_write_failure_threshold(
     mock_restart_networking,
     mock_write,
-    mock_switch_db,
-    mock_create_db,
-    mock_list_dbs,
+    mock_create_bucket,
+    mock_find_bucket,
     mock_read,
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=2, write_failure_threshold=1)
-    assert mock_list_dbs.call_count == 1
-    assert not mock_create_db.called
-    assert mock_switch_db.call_count == 1
+    assert mock_find_bucket.call_count == 1
+    assert not mock_create_bucket.called
     assert mock_read.call_count == 2
     assert mock_write.call_count == 2
     assert len(thlogger.measurements) == 2
@@ -191,15 +168,11 @@ def test_write_failure_threshold(
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
 @patch("thlogger.THLogger.write_measurements", side_effect=raise_keyboardinterrupt)
 def test_keyboard_interrupt(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     with pytest.raises(KeyboardInterrupt):
@@ -207,46 +180,38 @@ def test_keyboard_interrupt(
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
-@patch(
-    "influxdb.InfluxDBClient.get_list_database",
-    return_value=[{"name": "thlogger"}, {"name": "test"}],
-)
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
+@patch("influxdb_client.BucketsApi.find_bucket_by_name", return_value=True)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
 @patch("thlogger.THLogger.write_measurements", side_effect=raise_exception)
 def test_other_exception_handling(
-    mock_write, mock_switch_db, mock_create_db, mock_list_dbs, mock_read
+    mock_write, mock_create_bucket, mock_find_bucket, mock_read
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=2)
     assert mock_read.call_count == 2
-    assert mock_list_dbs.called
-    assert not mock_create_db.called
-    assert mock_switch_db.called
+    assert mock_find_bucket.called
+    assert not mock_create_bucket.called
     assert mock_write.call_count == 2
     assert len(thlogger.measurements) == 2
 
 
 @patch("Adafruit_DHT.read_retry", return_value=(50, 20))
 @patch(
-    "influxdb.InfluxDBClient.get_list_database",
+    "influxdb_client.BucketsApi.find_bucket_by_name",
     side_effect=conditionally_raise_connectionerror,
 )
-@patch("influxdb.InfluxDBClient.create_database", return_value=None)
-@patch("influxdb.InfluxDBClient.switch_database", return_value=None)
-@patch("influxdb.InfluxDBClient.write_points", return_value=None)
+@patch("influxdb_client.BucketsApi.create_bucket", return_value=True)
+@patch("influxdb_client.WriteApi.write", return_value=None)
 @patch("subprocess.call", side_effect=set_network_restarted)
 def test_network_restart(
     mock_system_call,
     mock_write,
-    mock_switch_db,
-    mock_create_db,
-    mock_list_dbs,
+    mock_create_bucket,
+    mock_find_bucket,
     mock_read,
 ):
     thlogger = init_logger()
     thlogger.work(max_iterations=1)
-    assert mock_list_dbs.call_count == 2
-    assert mock_create_db.call_count == 0
-    assert mock_switch_db.call_count == 1
+    assert mock_find_bucket.call_count == 2
+    assert mock_create_bucket.call_count == 0
     assert mock_system_call.call_count == 2

@@ -29,13 +29,6 @@ git clone https://github.com/viis/thlogger.git
 cd thlogger/docker
 ```
 
-* Rename and add a password to the `influxdb.env` file
-
-```bash
-mv influxdb.env.example influxdb.env
-# edit influxdb.env
-```
-
 * Create a directory for the database files (shared between the host and the container)
 
 ```bash
@@ -121,7 +114,7 @@ ssh pi@IP_ADDRESS
 ```bash
 sudo apt update
 sudo apt upgrade
-sudo apt install git python3-pip
+sudo apt install git python3-venv
 ```
 
 ### Install thlogger
@@ -145,9 +138,9 @@ The config consists of the following:
 "GPIO_PIN": The GPIO pin the sensor is connected to (17 if you followed the guide above)
 "HOST": InfluxDB server IP address
 "PORT": InfluxDB port (usually 8086)
-"DATABASE": InfluxDB database name (thlogger)
-"DB_USER": InfluxDB username (thlogger)
-"DB_PASS": InfluxDB password (what you wrote in influxdb.env above)
+"ORG": InfluxDB org (isberg)
+"BUCKET": InfluxDB database name (thlogger)
+"TOKEN": InfluxDB username (generate this yourself)
 "LOCATION": Location of your logger (garage, attic, etc)
 "SLEEP_BETWEEN_READINGS": In seconds (60 for a measurement every minute)
 ```
@@ -155,7 +148,7 @@ The config consists of the following:
 * Install thlogger as a service
 
 ```bash
-sudo sh INSTALL
+sudo sh ./INSTALL
 ```
 
 The logger is now running as a service on your RPi, and is logging temperature and humidity to your database. The
@@ -164,8 +157,16 @@ service starts automatically on boot.
 You can view the log file with
 
 ```
-journalctl -u thlogger
+tail /var/log/thlogger/thlogger.log
 ```
+
+### Remove thlogger
+
+```bash
+sudo sh ./REMOVE
+```
+
+**NOTE!** This removes all associated files that are outside of the git repo, also log files.
 
 ### Visualize your measurements with Grafana
 

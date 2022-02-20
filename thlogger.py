@@ -6,7 +6,8 @@ import json
 from argparse import ArgumentParser
 import subprocess
 import Adafruit_DHT
-from influxdb import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 from tenacity import retry, retry_if_exception_type, wait_fixed, wait_chain
 from requests.exceptions import ConnectionError
 
@@ -54,6 +55,7 @@ class THLogger:
 
         # init influxdb client
         self.client = None
+        self.write_api = None
         self.logger.info("INIT InfluxDB connection")
         self.init_db_connection()
 
@@ -67,19 +69,18 @@ class THLogger:
             self.restart_networking()
             self.CONNECTION_RETRIES = 0
 
-        databases = []
         self.logger.debug("CONNECTING TO %s:%s", self.HOST, self.PORT)
-        self.client = InfluxDBClient(self.HOST, self.PORT, self.DB_USER, self.DB_PASS)
-        databases = [d.get("name") for d in self.client.get_list_database()]
-        self.logger.debug("AVAILABLE DATABASES %s", databases)
+        url = f"http://{self.HOST}:{self.PORT}"
+        self.client = InfluxDBClient(url=url, token=self.TOKEN, org=self.ORG)
+        self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
+        buckets_api = self.client.buckets_api()
+        if not buckets_api.find_bucket_by_name(self.BUCKET):
+            buckets_api.create_bucket(bucket_name=self.BUCKET, org=self.ORG)
+            self.logger.info("CREATED BUCKET %s", self.BUCKET)
 
-        if self.DATABASE not in databases:
-            self.client.create_database(self.DATABASE)
-            self.logger.info("CREATED DATABASE %s", self.DATABASE)
-        self.client.switch_database(self.DATABASE)
-        self.logger.info("USE DATABASE %s", self.DATABASE)
 
     def restart_networking(self):
+        # TODO remove the restart logic
         self.logger.info("RESTARTING NETWORKING")
         subprocess.call(["systemctl", "daemon-reload"])
         subprocess.call(["systemctl", "restart", "dhcpcd"])
@@ -87,22 +88,16 @@ class THLogger:
     def write_measurements(self):
         # write measurements to db
         for measurement in self.measurements:
-            json_body = [
-                {
-                    "measurement": "temperature",
-                    "tags": {"location": self.LOCATION},
-                    "time": str(measurement["timestamp"]),
-                    "fields": {"value": measurement["temperature"]},
-                },
-                {
-                    "measurement": "humidity",
-                    "tags": {"location": self.LOCATION},
-                    "time": str(measurement["timestamp"]),
-                    "fields": {"value": measurement["humidity"]},
-                },
-            ]
-            self.logger.debug("JSON: %s", json_body)
-            self.client.write_points(json_body)
+            p = Point("temperature").tag("location", self.LOCATION) \
+                                    .field("value", measurement["temperature"]) \
+                                    .time(str(measurement["timestamp"]))
+            self.logger.debug("Point: %s", p.to_line_protocol())
+            self.write_api.write(self.BUCKET, self.ORG, p)
+            p = Point("humidity").tag("location", self.LOCATION) \
+                                    .field("value", measurement["humidity"]) \
+                                    .time(str(measurement["timestamp"]))
+            self.logger.debug("Point: %s", p.to_line_protocol())
+            self.write_api.write(self.BUCKET, self.ORG, p)
             self.logger.info(
                 "Temp: %d C, hum: %d %%",
                 measurement["temperature"],

@@ -2,17 +2,15 @@ version: '3'
 
 services:
     influxdb:
-        restart: always
-        image: influxdb
+        restart: unless-stopped
+        image: influxdb:2.1
         volumes:
-            - ./vol:/var/lib/influxdb
+            - ./vol_influxdb:/var/lib/influxdb2
         ports:
             - 8086:8086
-        env_file:
-            - influxdb.env
 
     grafana:
-        restart: always
-        image: grafana/grafana
+        restart: unless-stopped
+        image: grafana/grafana:master-ubuntu
         ports:
             - 8080:3000
